@@ -1,11 +1,11 @@
-const axios = require('axios');
-const http = require('http');
-const https = require('https');
-const { QwenAuthManager } = require('./auth.js');
-const { PassThrough } = require('stream');
-const path = require('path');
-const { promises: fs } = require('fs');
-const crypto = require('crypto');
+import axios, { AxiosError } from 'axios';
+import * as http from 'http';
+import * as https from 'https';
+import { QwenAuthManager, QwenCredentials, AccountInfo } from './auth';
+import { PassThrough } from 'stream';
+import * as path from 'path';
+import { promises as fs } from 'fs';
+import * as crypto from 'crypto';
 
 // Create HTTP agents with connection pooling
 const httpAgent = new http.Agent({
@@ -14,7 +14,6 @@ const httpAgent = new http.Agent({
   maxSockets: 50,
   maxFreeSockets: 10,
   timeout: 60000,
-  freeSocketTimeout: 30000
 });
 
 const httpsAgent = new https.Agent({
@@ -23,7 +22,6 @@ const httpsAgent = new https.Agent({
   maxSockets: 50,
   maxFreeSockets: 10,
   timeout: 60000,
-  freeSocketTimeout: 30000
 });
 
 // Default Qwen configuration
@@ -32,40 +30,30 @@ const DEFAULT_MODEL = 'qwen3-coder-plus';
 const QWEN_CODE_VERSION = '0.12.0';
 
 // Model aliases - maps client-facing model names to actual Qwen model names
-const MODEL_ALIASES = {
+const MODEL_ALIASES: Record<string, string> = {
   'qwen3.5-plus': 'coder-model'
 };
 
-function resolveModelAlias(model) {
+function resolveModelAlias(model: string): string {
   return MODEL_ALIASES[model] || model;
 }
 
-/**
- * Generate User-Agent header matching qwen-code CLI format
- * @returns {string} User-Agent string
- */
-function generateUserAgent() {
+function generateUserAgent(): string {
   const platform = process.platform;
   const arch = process.arch;
   return `QwenCode/${QWEN_CODE_VERSION} (${platform}; ${arch})`;
 }
 
-/**
- * Generate unique request ID for tracing
- * @returns {string} UUID v4
- */
-function generateRequestId() {
+function generateRequestId(): string {
   return crypto.randomUUID();
 }
 
-/**
- * Build standard headers for DashScope API requests
- * @param {string} accessToken - The OAuth access token
- * @param {boolean} isStreaming - Whether this is a streaming request
- * @returns {Object} Headers object
- */
-function buildDashScopeHeaders(accessToken, isStreaming = false) {
-  const headers = {
+interface DashScopeHeaders {
+  [key: string]: string;
+}
+
+function buildDashScopeHeaders(accessToken: string, isStreaming = false): DashScopeHeaders {
+  const headers: DashScopeHeaders = {
     'connection': 'keep-alive',
     'accept': 'application/json',
     'authorization': `Bearer ${accessToken}`,
@@ -84,28 +72,22 @@ function buildDashScopeHeaders(accessToken, isStreaming = false) {
     'accept-language': '*',
     'sec-fetch-mode': 'cors',
   };
-  
+
   if (isStreaming) {
     headers['accept'] = 'text/event-stream';
   }
-  
+
   return headers;
 }
 
 // Model-specific limits
-const MODEL_LIMITS = {
+const MODEL_LIMITS: Record<string, { maxTokens: number }> = {
   'vision-model': { maxTokens: 32768 },
   'qwen3-vl-plus': { maxTokens: 32768 },
   'qwen3-vl-max': { maxTokens: 32768 },
 };
 
-/**
- * Clamp max_tokens based on model limits
- * @param {string} model - Model name
- * @param {number} maxTokens - Requested max_tokens
- * @returns {number} - Clamped max_tokens
- */
-function clampMaxTokens(model, maxTokens) {
+function clampMaxTokens(model: string, maxTokens: number): number {
   const limit = MODEL_LIMITS[model];
   if (limit && maxTokens > limit.maxTokens) {
     return limit.maxTokens;
@@ -113,48 +95,34 @@ function clampMaxTokens(model, maxTokens) {
   return maxTokens;
 }
 
-// List of known Qwen models
-const QWEN_MODELS = [
-  {
-    id: 'qwen3-coder-plus',
-    object: 'model',
-    created: 1754686206,
-    owned_by: 'qwen'
-  },
-  {
-    id: 'qwen3-coder-flash',
-    object: 'model',
-    created: 1754686206,
-    owned_by: 'qwen'
-  },
-  {
-    id: 'qwen3-coder-flash',
-    object: 'model',
-    created: 1754686206,
-    owned_by: 'qwen'
-  },
-  {
-    id: 'coder-model',
-    object: 'model',
-    created: 1754686206,
-    owned_by: 'qwen'
-  },
-  {
-    id: 'vision-model',
-    object: 'model',
-    created: 1754686206,
-    owned_by: 'qwen'
-  }
+interface QwenModel {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+}
+
+const QWEN_MODELS: QwenModel[] = [
+  { id: 'qwen3-coder-plus', object: 'model', created: 1754686206, owned_by: 'qwen' },
+  { id: 'qwen3-coder-flash', object: 'model', created: 1754686206, owned_by: 'qwen' },
+  { id: 'qwen3-coder-flash', object: 'model', created: 1754686206, owned_by: 'qwen' },
+  { id: 'coder-model', object: 'model', created: 1754686206, owned_by: 'qwen' },
+  { id: 'vision-model', object: 'model', created: 1754686206, owned_by: 'qwen' }
 ];
 
-/**
- * Process messages to handle image content for vision models
- * @param {Array} messages - Array of messages
- * @param {string} model - Model name
- * @returns {Array} Processed messages
- */
-function processMessagesForVision(messages, model) {
-  // Only process for vision-model
+interface ContentPart {
+  type: string;
+  text?: string;
+  image_url?: { url: string };
+}
+
+interface Message {
+  role: string;
+  content: string | ContentPart[] | null;
+  [key: string]: unknown;
+}
+
+function processMessagesForVision(messages: Message[], model: string): Message[] {
   if (model !== 'vision-model') {
     return messages;
   }
@@ -164,83 +132,66 @@ function processMessagesForVision(messages, model) {
       return message;
     }
 
-    // If content is already an array, assume it's properly formatted
     if (Array.isArray(message.content)) {
       return message;
     }
 
-    // If content is a string, check if it contains image references
     if (typeof message.content === 'string') {
-      // Look for base64 image patterns or URLs
-      const imagePatterns = [
-        /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g,
-        /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|bmp)/gi
-      ];
-
-      let hasImages = false;
       const content = message.content;
-      const parts = [{ type: 'text', text: content }];
+      const parts: ContentPart[] = [{ type: 'text', text: content }];
+      let hasImages = false;
 
-      // Extract base64 images
       const base64Matches = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g);
       if (base64Matches) {
         hasImages = true;
         base64Matches.forEach(match => {
-          const mimeMatch = match.match(/data:image\/([^;]+);base64,/);
-          const mimeType = mimeMatch ? mimeMatch[1] : 'png';
-          const base64Data = match.split(',')[1];
-          
           parts.push({
             type: 'image_url',
-            image_url: {
-              url: match
-            }
+            image_url: { url: match }
           });
         });
       }
 
-      // Extract image URLs
       const urlMatches = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|bmp)/gi);
       if (urlMatches) {
         hasImages = true;
         urlMatches.forEach(url => {
           parts.push({
             type: 'image_url',
-            image_url: {
-              url: url
-            }
+            image_url: { url: url }
           });
         });
       }
 
-      // If no images found, keep as string
       if (!hasImages) {
         return message;
       }
 
-      return {
-        ...message,
-        content: parts
-      };
+      return { ...message, content: parts };
     }
 
     return message;
   });
 }
 
-/**
- * Check if an error is related to authentication/authorization
- */
-function isAuthError(error) {
+interface ErrorWithResponse extends Error {
+  response?: {
+    status?: number;
+    data?: unknown;
+  };
+  code?: string | number;
+  request?: unknown;
+}
+
+function isAuthError(error: unknown): boolean {
   if (!error) return false;
 
-  const errorMessage = 
-    error instanceof Error 
-      ? error.message.toLowerCase() 
+  const errorMessage =
+    error instanceof Error
+      ? error.message.toLowerCase()
       : String(error).toLowerCase();
 
-  // Define a type for errors that might have status or code properties
-  const errorWithCode = error;
+  const errorWithCode = error as ErrorWithResponse;
   const errorCode = errorWithCode?.response?.status || errorWithCode?.code;
 
   return (
@@ -255,26 +206,21 @@ function isAuthError(error) {
     errorMessage.includes('authentication') ||
     errorMessage.includes('access denied') ||
     (errorMessage.includes('token') && errorMessage.includes('expired')) ||
-    // Also check for 504 errors which might be related to auth issues
     errorCode === 504 ||
     errorMessage.includes('504') ||
     errorMessage.includes('gateway timeout')
   );
 }
 
-/**
- * Check if an error is related to quota limits
- */
-function isQuotaExceededError(error) {
+function isQuotaExceededError(error: unknown): boolean {
   if (!error) return false;
 
-  const errorMessage = 
-    error instanceof Error 
-      ? error.message.toLowerCase() 
+  const errorMessage =
+    error instanceof Error
+      ? error.message.toLowerCase()
       : String(error).toLowerCase();
 
-  // Define a type for errors that might have status or code properties
-  const errorWithCode = error;
+  const errorWithCode = error as ErrorWithResponse;
   const errorCode = errorWithCode?.response?.status || errorWithCode?.code;
 
   return (
@@ -285,96 +231,135 @@ function isQuotaExceededError(error) {
   );
 }
 
-class QwenAPI {
+export interface ChatCompletionRequest {
+  model?: string;
+  messages: Message[];
+  tools?: unknown;
+  tool_choice?: unknown;
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+  top_k?: number;
+  repetition_penalty?: number;
+  reasoning?: unknown;
+  accountId?: string;
+}
+
+export interface WebSearchRequest {
+  query: string;
+  page?: number;
+  rows?: number;
+  accountId?: string;
+}
+
+interface TokenUsageEntry {
+  date: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+interface AccountRateData {
+  count: number;
+  resetTime: number;
+}
+
+interface RequestCountsFile {
+  lastResetDate?: string;
+  requests?: Record<string, number>;
+  tokenUsage?: Record<string, TokenUsageEntry[]>;
+  webSearchRequests?: Record<string, number>;
+  webSearchResults?: Record<string, number>;
+}
+
+export class QwenAPI {
+  public authManager: QwenAuthManager;
+  private requestCount: Map<string, number>;
+  private authErrorCount: Map<string, number>;
+  public tokenUsage: Map<string, TokenUsageEntry[]>;
+  public lastResetDate: string;
+  private requestCountFile: string;
+  private lastSaveTime: number;
+  private saveInterval: number;
+  private pendingSave: boolean;
+  private accountLocks: Map<string, boolean>;
+  private accountQueues: Map<string, unknown[]>;
+  private accountRequestCounts: Map<string, AccountRateData>;
+  private requestWindowDuration: number;
+  private webSearchRequestCounts: Map<string, number>;
+  private webSearchResultCounts: Map<string, number>;
+  public lastFailedReset?: string;
+
   constructor() {
     this.authManager = new QwenAuthManager();
-    this.requestCount = new Map(); // Track requests per account
-    this.authErrorCount = new Map(); // Track consecutive auth errors per account
-    this.tokenUsage = new Map(); // Track token usage per account
-    this.lastResetDate = new Date().toISOString().split('T')[0]; // Track last reset date (UTC)
+    this.requestCount = new Map();
+    this.authErrorCount = new Map();
+    this.tokenUsage = new Map();
+    this.lastResetDate = new Date().toISOString().split('T')[0];
     this.requestCountFile = path.join(this.authManager.qwenDir, 'request_counts.json');
-    
-    // File I/O caching mechanism
+
     this.lastSaveTime = 0;
-    this.saveInterval = 60000; // Save every 60 seconds
+    this.saveInterval = 60000;
     this.pendingSave = false;
-    
-    // Concurrent request handling
-    this.accountLocks = new Map(); // Track which accounts are in use
-    this.accountQueues = new Map(); // Queue for requests waiting for specific accounts
-    
-    // Rate limiting per account
-    this.accountRequestCounts = new Map(); // Track requests per account per time window
-    this.requestWindowDuration = 60000; // 1 minute window
-    
-    // Separate counters for chat vs web search
-    this.webSearchRequestCounts = new Map(); // Track web search requests per account per day
-    this.webSearchResultCounts = new Map(); // Track web search results returned per account per day
-    
+
+    this.accountLocks = new Map();
+    this.accountQueues = new Map();
+
+    this.accountRequestCounts = new Map();
+    this.requestWindowDuration = 60000;
+
+    this.webSearchRequestCounts = new Map();
+    this.webSearchResultCounts = new Map();
+
     this.loadRequestCounts();
   }
 
-  /**
-   * Load request counts from disk
-   */
-  async loadRequestCounts() {
+  async loadRequestCounts(): Promise<void> {
     try {
       const data = await fs.readFile(this.requestCountFile, 'utf8');
-      const counts = JSON.parse(data);
-      
-      // Restore last reset date
+      const counts: RequestCountsFile = JSON.parse(data);
+
       if (counts.lastResetDate) {
         this.lastResetDate = counts.lastResetDate;
       }
-      
-      // Restore request counts
+
       if (counts.requests) {
         for (const [accountId, count] of Object.entries(counts.requests)) {
           this.requestCount.set(accountId, count);
         }
       }
-      
-      // Restore token usage data
+
       if (counts.tokenUsage) {
         for (const [accountId, usageData] of Object.entries(counts.tokenUsage)) {
           this.tokenUsage.set(accountId, usageData);
         }
       }
-      
-      // Restore web search request counts
+
       if (counts.webSearchRequests) {
         for (const [accountId, count] of Object.entries(counts.webSearchRequests)) {
           this.webSearchRequestCounts.set(accountId, count);
         }
       }
-      
-      // Restore web search result counts (with migration for old data)
+
       if (counts.webSearchResults) {
         for (const [accountId, count] of Object.entries(counts.webSearchResults)) {
           this.webSearchResultCounts.set(accountId, count);
         }
       } else {
-        // Migration: If webSearchResults doesn't exist, initialize with 0
         console.log('Migrating old data structure - adding webSearchResults tracking');
         for (const accountId of this.webSearchRequestCounts.keys()) {
           this.webSearchResultCounts.set(accountId, 0);
         }
       }
-      
-      // Reset counts if we've crossed into a new UTC day
+
       this.resetRequestCountsIfNeeded();
-    } catch (error) {
-      // File doesn't exist or is invalid, start with empty counts
+    } catch {
       this.resetRequestCountsIfNeeded();
     }
   }
 
-  /**
-   * Save request counts to disk
-   */
-  async saveRequestCounts() {
+  async saveRequestCounts(): Promise<void> {
     try {
-      const counts = {
+      const counts: RequestCountsFile = {
         lastResetDate: this.lastResetDate,
         requests: Object.fromEntries(this.requestCount),
         webSearchRequests: Object.fromEntries(this.webSearchRequestCounts),
@@ -385,34 +370,25 @@ class QwenAPI {
       this.lastSaveTime = Date.now();
       this.pendingSave = false;
     } catch (error) {
-      console.warn('Failed to save request counts:', error.message);
+      console.warn('Failed to save request counts:', (error as Error).message);
       this.pendingSave = false;
     }
   }
 
-  /**
-   * Schedule a save operation with debouncing
-   */
-  scheduleSave() {
-    // Don't schedule if save is already pending
+  scheduleSave(): void {
     if (this.pendingSave) return;
-    
+
     this.pendingSave = true;
     const now = Date.now();
-    
-    // If saved recently, wait for interval, otherwise save immediately
+
     if (now - this.lastSaveTime < this.saveInterval) {
       setTimeout(() => this.saveRequestCounts(), this.saveInterval);
     } else {
-      // Save immediately
       this.saveRequestCounts();
     }
   }
 
-  /**
-   * Reset request counts if we've crossed into a new UTC day
-   */
-  resetRequestCountsIfNeeded() {
+  resetRequestCountsIfNeeded(): void {
     const today = new Date().toISOString().split('T')[0];
     if (today !== this.lastResetDate) {
       this.requestCount.clear();
@@ -424,160 +400,110 @@ class QwenAPI {
     }
   }
 
-  /**
-   * Increment web search request count for an account
-   */
-  async incrementWebSearchRequestCount(accountId) {
+  async incrementWebSearchRequestCount(accountId: string): Promise<void> {
     const currentCount = this.webSearchRequestCounts.get(accountId) || 0;
     this.webSearchRequestCounts.set(accountId, currentCount + 1);
     this.scheduleSave();
   }
 
-  /**
-   * Get web search request count for an account
-   */
-  getWebSearchRequestCount(accountId) {
+  getWebSearchRequestCount(accountId: string): number {
     return this.webSearchRequestCounts.get(accountId) || 0;
   }
 
-  /**
-   * Increment web search result count for an account
-   */
-  async incrementWebSearchResultCount(accountId, resultCount) {
+  async incrementWebSearchResultCount(accountId: string, resultCount: number): Promise<void> {
     const currentCount = this.webSearchResultCounts.get(accountId) || 0;
     this.webSearchResultCounts.set(accountId, currentCount + resultCount);
     this.scheduleSave();
   }
 
-  /**
-   * Get web search result count for an account
-   */
-  getWebSearchResultCount(accountId) {
+  getWebSearchResultCount(accountId: string): number {
     return this.webSearchResultCounts.get(accountId) || 0;
   }
 
-  /**
-   * Increment request count for an account
-   * @param {string} accountId - The account ID
-   */
-  async incrementRequestCount(accountId) {
+  async incrementRequestCount(accountId: string): Promise<void> {
     this.resetRequestCountsIfNeeded();
     const currentCount = this.requestCount.get(accountId) || 0;
     this.requestCount.set(accountId, currentCount + 1);
-    
-    // Schedule save instead of saving immediately
     this.scheduleSave();
   }
 
-  /**
-   * Record token usage for an account
-   * @param {string} accountId - The account ID
-   * @param {number} inputTokens - Number of input tokens
-   * @param {number} outputTokens - Number of output tokens
-   */
-  async recordTokenUsage(accountId, inputTokens, outputTokens) {
+  async recordTokenUsage(accountId: string, inputTokens: number, outputTokens: number): Promise<void> {
     try {
-      // Get current date in YYYY-MM-DD format
       const currentDate = new Date().toISOString().split('T')[0];
-      
-      // Initialize token usage array for this account if it doesn't exist
+
       if (!this.tokenUsage.has(accountId)) {
         this.tokenUsage.set(accountId, []);
       }
-      
-      const accountUsage = this.tokenUsage.get(accountId);
-      
-      // Find existing entry for today
-      let todayEntry = accountUsage.find(entry => entry.date === currentDate);
-      
+
+      const accountUsage = this.tokenUsage.get(accountId)!;
+      const todayEntry = accountUsage.find(entry => entry.date === currentDate);
+
       if (todayEntry) {
-        // Update existing entry
         todayEntry.inputTokens += inputTokens;
         todayEntry.outputTokens += outputTokens;
       } else {
-        // Create new entry for today
         accountUsage.push({
           date: currentDate,
           inputTokens: inputTokens,
           outputTokens: outputTokens
         });
-}
-      
-      // Schedule save instead of saving immediately
+      }
+
       this.scheduleSave();
     } catch (error) {
-      console.warn('Failed to record token usage:', error.message);
+      console.warn('Failed to record token usage:', (error as Error).message);
     }
   }
 
-  /**
-   * Get request count for an account
-   * @param {string} accountId - The account ID
-   * @returns {number} The request count
-   */
-  getRequestCount(accountId) {
+  getRequestCount(accountId: string): number {
     this.resetRequestCountsIfNeeded();
     return this.requestCount.get(accountId) || 0;
   }
 
-  /**
-   * Increment auth error count for an account
-   * @param {string} accountId - The account ID
-   */
-  incrementAuthErrorCount(accountId) {
+  incrementAuthErrorCount(accountId: string): number {
     const currentCount = this.authErrorCount.get(accountId) || 0;
     this.authErrorCount.set(accountId, currentCount + 1);
     return currentCount + 1;
   }
 
-  /**
-   * Reset auth error count for an account (when a successful request is made)
-   * @param {string} accountId - The account ID
-   */
-  resetAuthErrorCount(accountId) {
+  resetAuthErrorCount(accountId: string): void {
     this.authErrorCount.set(accountId, 0);
   }
 
-  /**
-   * Get auth error count for an account
-   * @param {string} accountId - The account ID
-   * @returns {number} The auth error count
-   */
-  getAuthErrorCount(accountId) {
+  getAuthErrorCount(accountId: string): number {
     return this.authErrorCount.get(accountId) || 0;
   }
 
-  /**
-   * Get the best available account based on token freshness
-   * @returns {Object|null} Account info with {accountId, credentials}
-   */
-  async getBestAccount(exclude = new Set()) {
-    // Get all available accounts
+  getHealthyAccounts(accountIds: string[]): string[] {
+    return accountIds.filter(id => {
+      const credentials = this.authManager.getAccountCredentials(id);
+      return credentials && this.authManager.isTokenValid(credentials);
+    });
+  }
+
+  async getBestAccount(exclude: Set<string> = new Set()): Promise<AccountInfo | null> {
     const accountIds = this.authManager.getAccountIds();
     let availableAccountIds = accountIds;
     if (exclude && exclude.size) {
       availableAccountIds = availableAccountIds.filter(id => !exclude.has(id));
     }
 
+    const healthyAccountIds = availableAccountIds.filter(id => {
+      const credentials = this.authManager.getAccountCredentials(id);
+      return credentials && this.authManager.isTokenValid(credentials);
+    });
+
     if (healthyAccountIds.length === 0) {
       console.log('No healthy accounts available');
       return null;
     }
 
-    // TODO: Check better log location for this for now im commenting this out
-
-    // Load credentials for all healthy accounts and find freshest
-    const accountCredentials = [];
+    const accountCredentials: { accountId: string; credentials: QwenCredentials; minutesLeft: number }[] = [];
     for (const accountId of healthyAccountIds) {
-      // Accounts should already be loaded by the caller; fetch from memory
       const credentials = this.authManager.getAccountCredentials(accountId);
       if (credentials) {
-        const minutesLeft = (credentials.expiry_date - Date.now()) / 60000;
-        accountCredentials.push({
-          accountId,
-          credentials,
-          minutesLeft
-        });
+        const minutesLeft = ((credentials.expiry_date ?? 0) - Date.now()) / 60000;
+        accountCredentials.push({ accountId, credentials, minutesLeft });
       }
     }
 
@@ -586,36 +512,29 @@ class QwenAPI {
       return null;
     }
 
-    // Sort by freshness (freshest first)
     accountCredentials.sort((a, b) => b.minutesLeft - a.minutesLeft);
 
-    // Try accounts from freshest to least fresh
     for (const account of accountCredentials) {
       try {
         let selectedCredentials = account.credentials;
 
-        // If account is expired, try to refresh it
         if (account.minutesLeft < 0) {
           console.log(`Account ${account.accountId} is expired, attempting refresh...`);
           try {
-            // Refresh and ensure credentials are saved under the correct named account
             selectedCredentials = await this.authManager.performTokenRefresh(account.credentials, account.accountId);
             console.log(`Successfully refreshed account ${account.accountId}`);
           } catch (refreshError) {
-            console.log(`Failed to refresh account ${account.accountId}: ${refreshError.message}`);
-            continue; // Try next account
+            console.log(`Failed to refresh account ${account.accountId}: ${(refreshError as Error).message}`);
+            continue;
           }
         }
 
-        // TODO: Check better log location for this for now im commenting this out
-        //console.log(`Selected account ${account.accountId} (${account.minutesLeft.toFixed(1)} minutes left)`);
-        
         return {
           accountId: account.accountId,
           credentials: selectedCredentials
         };
       } catch (error) {
-        console.log(`Failed to prepare account ${account.accountId}: ${error.message}`);
+        console.log(`Failed to prepare account ${account.accountId}: ${(error as Error).message}`);
         continue;
       }
     }
@@ -624,15 +543,12 @@ class QwenAPI {
     return null;
   }
 
-  async getApiEndpoint(credentials) {
-    // Check if credentials contain a custom endpoint
+  async getApiEndpoint(credentials: QwenCredentials | null): Promise<string> {
     if (credentials && credentials.resource_url) {
       let endpoint = credentials.resource_url;
-      // Ensure it has a scheme
       if (!endpoint.startsWith('http')) {
         endpoint = `https://${endpoint}`;
       }
-      // Ensure it has the /v1 suffix
       if (!endpoint.endsWith('/v1')) {
         if (endpoint.endsWith('/')) {
           endpoint += 'v1';
@@ -642,16 +558,14 @@ class QwenAPI {
       }
       return endpoint;
     } else {
-      // Use default endpoint
       return DEFAULT_QWEN_API_BASE_URL;
     }
   }
 
-  async chatCompletions(request) {
+  async chatCompletions(request: ChatCompletionRequest): Promise<unknown> {
     await this.authManager.loadAllAccounts();
     const forcedAccountId = request.accountId;
     if (forcedAccountId) {
-      // Use only the specified account; refresh once before request if needed, no rotation/retry
       const creds0 = this.authManager.getAccountCredentials(forcedAccountId);
       if (!creds0) {
         throw new Error(`No credentials found for account ${forcedAccountId}`);
@@ -660,79 +574,58 @@ class QwenAPI {
       if (!this.authManager.isTokenValid(credentials)) {
         credentials = await this.authManager.performTokenRefresh(credentials, forcedAccountId);
       }
-      const accountInfo = { accountId: forcedAccountId, credentials };
+      const accountInfo: AccountInfo = { accountId: forcedAccountId, credentials };
       return await this.processRequestWithAccount(request, accountInfo);
     }
 
-    // Multi-account auto selection
     const accountIds = this.authManager.getAccountIds();
     if (accountIds.length === 0) {
       return this.chatCompletionsSingleAccount(request);
     }
-    
-    const tried = new Set();
-    let lastError = null;
+
+    const tried = new Set<string>();
+    let lastError: Error | null = null;
     const maxAttempts = 2;
-    
+
     for (let i = 0; i < maxAttempts; i++) {
       const bestAccount = await this.getBestAccount(tried);
       if (!bestAccount) {
         break;
       }
-      
+
       try {
-        // Check if account is rate limited
         if (this.isAccountRateLimited(bestAccount.accountId)) {
-          // Mark account as tried and continue to the next
           tried.add(bestAccount.accountId);
           continue;
         }
-        
-        // TODO: Check if we need locking based system for concurrent requests or not
-        // Try to acquire lock for this account
-        // const lockAcquired = await this.acquireAccountLock(bestAccount.accountId);
-        // if (!lockAcquired) {
-        //   // Account is in use, skip to next attempt
-        //   tried.add(bestAccount.accountId);
-        //   continue;
-        // }
-        
+
         try {
-          // Increment request count after acquiring lock but before processing
           this.incrementAccountRequestCount(bestAccount.accountId);
           return await this.processRequestWithAccount(request, bestAccount);
         } finally {
-          // Always release the lock after request is done (success or failure)
-          // this.releaseAccountLock(bestAccount.accountId);
+          // Lock release placeholder
         }
       } catch (error) {
-        lastError = error;
+        lastError = error as Error;
         tried.add(bestAccount.accountId);
         continue;
       }
     }
-    
+
     if (lastError) throw lastError;
     throw new Error('No healthy accounts available');
   }
 
-  /**
-   * Process request with a specific account (no locking)
-   */
-  async processRequestWithAccount(request, accountInfo) {
+  async processRequestWithAccount(request: ChatCompletionRequest, accountInfo: AccountInfo): Promise<unknown> {
     const { accountId, credentials } = accountInfo;
-    
-    // Get API endpoint
+
     const apiEndpoint = await this.getApiEndpoint(credentials);
-    
-    // Make API call
     const url = `${apiEndpoint}/chat/completions`;
-    const model = resolveModelAlias(request.model) || DEFAULT_MODEL;
-    
-    // Process messages for vision model support
+    const model = resolveModelAlias(request.model || '') || DEFAULT_MODEL;
+
     const processedMessages = processMessagesForVision(request.messages, model);
-    const maxTokens = clampMaxTokens(model, request.max_tokens);
-    
+    const maxTokens = clampMaxTokens(model, request.max_tokens || 0);
+
     const payload = {
       model: model,
       messages: processedMessages,
@@ -749,50 +642,39 @@ class QwenAPI {
 
     const headers = buildDashScopeHeaders(credentials.access_token, false);
 
-    // Increment request count for successful request
     await this.incrementRequestCount(accountId);
 
-    // Log which account is being used with Request number
-
-    const response = await axios.post(url, payload, { 
+    const response = await axios.post(url, payload, {
       headers: headers,
-      timeout: 300000, // 5 minutes timeout
+      timeout: 300000,
       httpAgent,
       httpsAgent
     });
-    
-    // Reset auth error count on successful request
+
     this.resetAuthErrorCount(accountId);
-    
-    // Record token usage if available
+
     if (response.data && response.data.usage) {
       await this.recordTokenUsage(
-        accountId, 
+        accountId,
         response.data.usage.prompt_tokens || 0,
         response.data.usage.completion_tokens || 0
       );
     }
-    
+
     return response.data;
   }
 
-  /**
-   * Chat completions for single account mode
-   */
-  async chatCompletionsSingleAccount(request) {
-    // Get a valid access token (automatically refreshes if needed)
+  async chatCompletionsSingleAccount(request: ChatCompletionRequest): Promise<unknown> {
     const accessToken = await this.authManager.getValidAccessToken();
     const credentials = await this.authManager.loadCredentials();
     const apiEndpoint = await this.getApiEndpoint(credentials);
-    
-    // Make API call
+
     const url = `${apiEndpoint}/chat/completions`;
-    const model = resolveModelAlias(request.model) || DEFAULT_MODEL;
-    
-    // Process messages for vision model support
+    const model = resolveModelAlias(request.model || '') || DEFAULT_MODEL;
+
     const processedMessages = processMessagesForVision(request.messages, model);
-    const maxTokens = clampMaxTokens(model, request.max_tokens);
-    
+    const maxTokens = clampMaxTokens(model, request.max_tokens || 0);
+
     const payload = {
       model: model,
       messages: processedMessages,
@@ -805,155 +687,113 @@ class QwenAPI {
       tool_choice: request.tool_choice,
       reasoning: request.reasoning
     };
-    
+
     const headers = buildDashScopeHeaders(accessToken, false);
-    
+
     try {
-      // Increment request count for successful request
       await this.incrementRequestCount('default');
 
-      // Log which account is being used with Request number
-
-      const response = await axios.post(url, payload, { headers, timeout: 300000, httpAgent, httpsAgent }); // 5 minute timeout
-      // Reset auth error count on successful request (for consistency, even though we don't rotate)
+      const response = await axios.post(url, payload, { headers, timeout: 300000, httpAgent, httpsAgent });
       this.resetAuthErrorCount('default');
 
-      // Record token usage if available in response
       if (response.data && response.data.usage) {
         const { prompt_tokens = 0, completion_tokens = 0 } = response.data.usage;
         await this.recordTokenUsage('default', prompt_tokens, completion_tokens);
       }
-      
+
       return response.data;
     } catch (error) {
-      // Check if this is an authentication error that might benefit from a retry
       if (isAuthError(error)) {
-        // Increment auth error count (for tracking, even though we can't rotate)
         const authErrorCount = this.incrementAuthErrorCount('default');
-        console.log(`\x1b[33mDetected auth error (${error.response?.status || 'N/A'}) (consecutive count: ${authErrorCount})\x1b[0m`);
-        
+        const axiosErr = error as AxiosError;
+        console.log(`\x1b[33mDetected auth error (${axiosErr.response?.status || 'N/A'}) (consecutive count: ${authErrorCount})\x1b[0m`);
+
         console.log('\x1b[33m%s\x1b[0m', `Attempting token refresh and retry...`);
         try {
-          // Force refresh the token and retry once
-          await this.authManager.performTokenRefresh(credentials);
+          await this.authManager.performTokenRefresh(credentials!);
           const newAccessToken = await this.authManager.getValidAccessToken();
-          
-          // Retry the request with the new token
+
           console.log('\x1b[36m%s\x1b[0m', 'Retrying request with refreshed token...');
           const retryHeaders = buildDashScopeHeaders(newAccessToken, false);
-          
+
           const retryResponse = await axios.post(url, payload, { headers: retryHeaders, timeout: 300000, httpAgent, httpsAgent });
           console.log('\x1b[32m%s\x1b[0m', 'Request succeeded after token refresh');
-          // Reset auth error count on successful request
           this.resetAuthErrorCount('default');
           return retryResponse.data;
-        } catch (retryError) {
+        } catch {
           console.error('\x1b[31m%s\x1b[0m', 'Request failed even after token refresh');
-          // If retry fails, throw the original error with additional context
-          throw new Error(`Qwen API error (after token refresh attempt): ${error.response?.status || 'N/A'} ${JSON.stringify(error.response?.data || error.message)}`);
+          throw new Error(`Qwen API error (after token refresh attempt): ${axiosErr.response?.status || 'N/A'} ${JSON.stringify(axiosErr.response?.data || axiosErr.message)}`);
         }
       }
-      
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        throw new Error(`Qwen API error: ${error.response.status} ${JSON.stringify(error.response.data)}`);
-      } else if (error.request) {
-        // The request was made but no response was received
+
+      const axiosErr = error as AxiosError;
+      if (axiosErr.response) {
+        throw new Error(`Qwen API error: ${axiosErr.response.status} ${JSON.stringify(axiosErr.response.data)}`);
+      } else if (axiosErr.request) {
         throw new Error(`Qwen API request failed: No response received`);
       } else {
-        // Something happened in setting up the request that triggered an Error
-        throw new Error(`Qwen API request failed: ${error.message}`);
+        throw new Error(`Qwen API request failed: ${(error as Error).message}`);
       }
     }
   }
 
-  /**
-   * Acquire a lock for an account to prevent concurrent requests
-   * @param {string} accountId - The account ID to lock
-   * @returns {Promise<boolean>} True if lock was acquired, false otherwise
-   */
-  async acquireAccountLock(accountId) {
-    if (!this.accountLocks.has(accountId)) {
-      // No one is using this account, acquire the lock
-      this.accountLocks.set(accountId, true);
+  async acquireAccountLock(accountId: string | null): Promise<boolean> {
+    const key = accountId || 'default';
+    if (!this.accountLocks.has(key)) {
+      this.accountLocks.set(key, true);
       return true;
     }
-    
-    // Account is currently in use, return false
     return false;
   }
 
-  /**
-   * Release a lock for an account
-   * @param {string} accountId - The account ID to unlock
-   */
-  releaseAccountLock(accountId) {
-    if (this.accountLocks.has(accountId)) {
-      this.accountLocks.delete(accountId);
+  releaseAccountLock(accountId: string | null): void {
+    const key = accountId || 'default';
+    if (this.accountLocks.has(key)) {
+      this.accountLocks.delete(key);
     }
   }
 
-  /**
-   * Check if account has exceeded rate limit
-   * @param {string} accountId - The account ID to check
-   * @returns {boolean} True if rate limit exceeded, false otherwise
-   */
-  isAccountRateLimited(accountId) {
+  isAccountRateLimited(accountId: string): boolean {
     const now = Date.now();
     const accountData = this.accountRequestCounts.get(accountId) || { count: 0, resetTime: now + this.requestWindowDuration };
-    
-    // If window has passed, reset the count
+
     if (now >= accountData.resetTime) {
       accountData.count = 0;
       accountData.resetTime = now + this.requestWindowDuration;
     }
-    
-    // For Qwen accounts, we'll use a default limit of 3600 requests per hour (60 per minute)
-    // But since we're checking per minute, that's 60 requests per minute
-    const rateLimit = 60; // requests per window
-    
-    // Check if we've exceeded the rate limit
+
+    const rateLimit = 60;
+
     if (accountData.count >= rateLimit) {
-      console.log(`\x1b[33mAccount ${accountId} has exceeded rate limit (${rateLimit} requests per ${this.requestWindowDuration/1000}s window)\x1b[0m`);
+      console.log(`\x1b[33mAccount ${accountId} has exceeded rate limit (${rateLimit} requests per ${this.requestWindowDuration / 1000}s window)\x1b[0m`);
       return true;
     }
-    
+
     return false;
   }
 
-  /**
-   * Increment account request count
-   * @param {string} accountId - The account ID to increment
-   */
-  incrementAccountRequestCount(accountId) {
+  incrementAccountRequestCount(accountId: string): void {
     const now = Date.now();
     let accountData = this.accountRequestCounts.get(accountId);
-    
+
     if (!accountData || now >= accountData.resetTime) {
-      // Reset the window if it has passed
       accountData = { count: 0, resetTime: now + this.requestWindowDuration };
     }
-    
+
     accountData.count++;
     this.accountRequestCounts.set(accountId, accountData);
   }
 
-  async listModels() {
+  async listModels(): Promise<{ object: string; data: QwenModel[] }> {
     console.log('Returning mock models list');
-    
-    // Return a mock list of Qwen models since Qwen API doesn't have this endpoint
+
     return {
       object: 'list',
       data: QWEN_MODELS
     };
   }
 
-  /**
-   * Stream chat completions from Qwen API
-   * @param {Object} request - The chat completion request
-   * @returns {Promise<Stream>} - A stream of SSE events
-   */
-  async streamChatCompletions(request) {
+  async streamChatCompletions(request: ChatCompletionRequest): Promise<PassThrough> {
     await this.authManager.loadAllAccounts();
     const forcedAccountId = request.accountId;
     const accountIds = this.authManager.getAccountIds();
@@ -969,15 +809,12 @@ class QwenAPI {
       const url = `${apiEndpoint}/chat/completions`;
       const model = request.model || DEFAULT_MODEL;
       const processedMessages = processMessagesForVision(request.messages, model);
-      const maxTokens = clampMaxTokens(model, request.max_tokens);
+      const maxTokens = clampMaxTokens(model, request.max_tokens || 0);
       const payload = { model, messages: processedMessages, temperature: request.temperature, max_tokens: maxTokens, top_p: request.top_p, top_k: request.top_k, repetition_penalty: request.repetition_penalty, tools: request.tools, tool_choice: request.tool_choice, reasoning: request.reasoning, stream: true, stream_options: { include_usage: true } };
       const headers = buildDashScopeHeaders(credentials.access_token, true);
-      
-      // Increment request count for successful request
+
       await this.incrementRequestCount(forcedAccountId);
 
-      // Log which account is being used with Request number
-      
       const stream = new PassThrough();
       const response = await axios.post(url, payload, { headers, timeout: 300000, responseType: 'stream', httpAgent, httpsAgent });
       response.data.pipe(stream);
@@ -985,81 +822,58 @@ class QwenAPI {
     }
 
     if (accountIds.length === 0) {
-      // Use default single account mode
       const accessToken = await this.authManager.getValidAccessToken();
       const credentials = await this.authManager.loadCredentials();
       const apiEndpoint = await this.getApiEndpoint(credentials);
       const url = `${apiEndpoint}/chat/completions`;
-      const model = resolveModelAlias(request.model) || DEFAULT_MODEL;
+      const model = resolveModelAlias(request.model || '') || DEFAULT_MODEL;
       const processedMessages = processMessagesForVision(request.messages, model);
-      const maxTokens = clampMaxTokens(model, request.max_tokens);
+      const maxTokens = clampMaxTokens(model, request.max_tokens || 0);
       const payload = { model, messages: processedMessages, temperature: request.temperature, max_tokens: maxTokens, top_p: request.top_p, top_k: request.top_k, repetition_penalty: request.repetition_penalty, tools: request.tools, tool_choice: request.tool_choice, reasoning: request.reasoning, stream: true, stream_options: { include_usage: true } };
       const headers = buildDashScopeHeaders(accessToken, true);
-      
-      // Increment request count for successful request
+
       await this.incrementRequestCount('default');
 
-      // Log which account is being used with Request number
-          
-      
       const stream = new PassThrough();
       const response = await axios.post(url, payload, { headers, timeout: 300000, responseType: 'stream', httpAgent, httpsAgent });
       response.data.pipe(stream);
       return stream;
     }
 
-    // Two-attempt rotation with account locking and rate limiting
-    const tried = new Set();
-    let lastError = null;
+    const tried = new Set<string>();
+    let lastError: Error | null = null;
     for (let i = 0; i < 2; i++) {
       const bestAccount = await this.getBestAccount(tried);
       if (!bestAccount) break;
       const { accountId, credentials } = bestAccount;
-      
+
       try {
-        // Check if account is rate limited
         if (this.isAccountRateLimited(accountId)) {
-          // Mark account as tried and continue to the next
           tried.add(accountId);
           continue;
         }
-        
-        // TODO: Check if we need locking based system for concurrent requests or not
-        // Try to acquire lock for this account
-        // const lockAcquired = await this.acquireAccountLock(accountId);
-        // if (!lockAcquired) {
-        //   // Account is in use, skip to next attempt
-        //   tried.add(accountId);
-        //   continue;
-        // }
-        
+
         try {
           const apiEndpoint = await this.getApiEndpoint(credentials);
           const url = `${apiEndpoint}/chat/completions`;
-          const model = resolveModelAlias(request.model) || DEFAULT_MODEL;
+          const model = resolveModelAlias(request.model || '') || DEFAULT_MODEL;
           const processedMessages = processMessagesForVision(request.messages, model);
-          const maxTokens = clampMaxTokens(model, request.max_tokens);
+          const maxTokens = clampMaxTokens(model, request.max_tokens || 0);
           const payload = { model, messages: processedMessages, temperature: request.temperature, max_tokens: maxTokens, top_p: request.top_p, top_k: request.top_k, repetition_penalty: request.repetition_penalty, tools: request.tools, tool_choice: request.tool_choice, reasoning: request.reasoning, stream: true, stream_options: { include_usage: true } };
           const headers = buildDashScopeHeaders(credentials.access_token, true);
           const stream = new PassThrough();
-          
-          // Increment request count after acquiring lock but before processing
-          this.incrementAccountRequestCount(accountId);
 
-          // Increment request count for successful request
+          this.incrementAccountRequestCount(accountId);
           await this.incrementRequestCount(accountId);
 
-          // Log which account is being used with Request number
-          
           const response = await axios.post(url, payload, { headers, timeout: 300000, responseType: 'stream', httpAgent, httpsAgent });
           response.data.pipe(stream);
           return stream;
         } finally {
-          // Always release the lock after request is done (success or failure)
-          // this.releaseAccountLock(accountId);
+          // Lock release placeholder
         }
       } catch (error) {
-        lastError = error;
+        lastError = error as Error;
         tried.add(bestAccount.accountId);
         continue;
       }
@@ -1068,17 +882,11 @@ class QwenAPI {
     throw new Error('No healthy accounts available');
   }
 
-  /**
-   * Perform web search using Qwen's web search API
-   * @param {Object} request - The web search request
-   * @returns {Promise<Object>} - Web search results
-   */
-  async webSearch(request) {
+  async webSearch(request: WebSearchRequest): Promise<unknown> {
     await this.authManager.loadAllAccounts();
     const forcedAccountId = request.accountId;
-    
+
     if (forcedAccountId) {
-      // Use only the specified account
       const creds0 = this.authManager.getAccountCredentials(forcedAccountId);
       if (!creds0) {
         throw new Error(`No credentials found for account ${forcedAccountId}`);
@@ -1087,33 +895,31 @@ class QwenAPI {
       if (!this.authManager.isTokenValid(credentials)) {
         credentials = await this.authManager.performTokenRefresh(credentials, forcedAccountId);
       }
-      const accountInfo = { accountId: forcedAccountId, credentials };
+      const accountInfo: AccountInfo = { accountId: forcedAccountId, credentials };
       return await this.processWebSearchWithAccount(request, accountInfo);
     }
 
-    // Multi-account auto selection
     const accountIds = this.authManager.getAccountIds();
     if (accountIds.length === 0) {
       return this.webSearchSingleAccount(request);
     }
-    
-    const tried = new Set();
-    let lastError = null;
+
+    const tried = new Set<string>();
+    let lastError: Error | null = null;
     const maxAttempts = 2;
-    
+
     for (let i = 0; i < maxAttempts; i++) {
       const bestAccount = await this.getBestAccount(tried);
       if (!bestAccount) {
         break;
       }
-      
+
       try {
-        // Check if account is rate limited
         if (this.isAccountRateLimited(bestAccount.accountId)) {
           tried.add(bestAccount.accountId);
           continue;
         }
-        
+
         try {
           this.incrementAccountRequestCount(bestAccount.accountId);
           return await this.processWebSearchWithAccount(request, bestAccount);
@@ -1121,47 +927,35 @@ class QwenAPI {
           // Account handling done in processWebSearchWithAccount
         }
       } catch (error) {
-        lastError = error;
+        lastError = error as Error;
         tried.add(bestAccount.accountId);
         continue;
       }
     }
-    
+
     if (lastError) throw lastError;
     throw new Error('No accounts available');
   }
 
-  /**
-   * Get web search API endpoint (different from chat endpoint)
-   */
-  async getWebSearchEndpoint(credentials) {
-    // Check if credentials contain a custom endpoint
+  async getWebSearchEndpoint(credentials: QwenCredentials | null): Promise<string> {
     if (credentials && credentials.resource_url) {
       let endpoint = credentials.resource_url;
-      // Ensure it has a scheme
       if (!endpoint.startsWith('http')) {
         endpoint = `https://${endpoint}`;
       }
-      // Remove trailing slash if present
       endpoint = endpoint.replace(/\/$/, '');
-      // For web search, we don't add /v1 suffix since the API path includes it
       return endpoint;
     } else {
-      // Use default endpoint for web search (without /v1 suffix)
       return 'https://dashscope.aliyuncs.com/compatible-mode';
     }
   }
 
-  /**
-   * Process web search request with a specific account
-   */
-  async processWebSearchWithAccount(request, accountInfo) {
+  async processWebSearchWithAccount(request: WebSearchRequest, accountInfo: AccountInfo): Promise<unknown> {
     const { accountId, credentials } = accountInfo;
-    
-    // Get web search API endpoint
+
     const webSearchBaseUrl = await this.getWebSearchEndpoint(credentials);
     const webSearchUrl = `${webSearchBaseUrl}/api/v1/indices/plugin/web_search`;
-    
+
     const payload = {
       uq: request.query,
       page: request.page || 1,
@@ -1170,108 +964,85 @@ class QwenAPI {
 
     const headers = buildDashScopeHeaders(credentials.access_token, false);
 
-    // Increment web search request count for successful request
     await this.incrementWebSearchRequestCount(accountId);
 
-    // Log which account is being used with web search request number
-
-    const response = await axios.post(webSearchUrl, payload, { 
+    const response = await axios.post(webSearchUrl, payload, {
       headers: headers,
-      timeout: 300000, // 5 minutes timeout
+      timeout: 300000,
       httpAgent,
       httpsAgent
     });
-    
-    // Reset auth error count on successful request
+
     this.resetAuthErrorCount(accountId);
-    
-    // Track web search results returned
+
     const resultCount = response.data?.data?.docs?.length || 0;
     if (resultCount > 0) {
       await this.incrementWebSearchResultCount(accountId, resultCount);
     }
-    
+
     console.log(`\x1b[32mWeb search completed successfully using account ${accountId}. Found ${response.data?.data?.total || 0} results, returned ${resultCount}.\x1b[0m`);
     return response.data;
   }
 
-  /**
-   * Web search for single account mode
-   */
-  async webSearchSingleAccount(request) {
-    // Get a valid access token (automatically refreshes if needed)
+  async webSearchSingleAccount(request: WebSearchRequest): Promise<unknown> {
     const accessToken = await this.authManager.getValidAccessToken();
     const credentials = await this.authManager.loadCredentials();
     const webSearchBaseUrl = await this.getWebSearchEndpoint(credentials);
     const webSearchUrl = `${webSearchBaseUrl}/api/v1/indices/plugin/web_search`;
-    
+
     const payload = {
       uq: request.query,
       page: request.page || 1,
       rows: request.rows || 10
     };
-    
+
     const headers = buildDashScopeHeaders(accessToken, false);
-    
+
     try {
-      // Increment web search request count for successful request
       await this.incrementWebSearchRequestCount('default');
 
-      // Log which account is being used with web search request number
-
       const response = await axios.post(webSearchUrl, payload, { headers, timeout: 300000, httpAgent, httpsAgent });
-      
-      // Reset auth error count on successful request
+
       this.resetAuthErrorCount('default');
-      
-      // Track web search results returned
+
       const resultCount = response.data?.data?.docs?.length || 0;
       if (resultCount > 0) {
         await this.incrementWebSearchResultCount('default', resultCount);
       }
-      
+
       return response.data;
     } catch (error) {
-      // Check if this is an authentication error that might benefit from a retry
       if (isAuthError(error)) {
-        // Increment auth error count
         const authErrorCount = this.incrementAuthErrorCount('default');
-        console.log(`\x1b[33mDetected auth error (${error.response?.status || 'N/A'}) (consecutive count: ${authErrorCount})\x1b[0m`);
-        
+        const axiosErr = error as AxiosError;
+        console.log(`\x1b[33mDetected auth error (${axiosErr.response?.status || 'N/A'}) (consecutive count: ${authErrorCount})\x1b[0m`);
+
         console.log('\x1b[33m%s\x1b[0m', `Attempting token refresh and retry...`);
         try {
-          // Force refresh the token and retry once
-          await this.authManager.performTokenRefresh(credentials);
+          await this.authManager.performTokenRefresh(credentials!);
           const newAccessToken = await this.authManager.getValidAccessToken();
-          
-          // Retry the request with the new token
+
           console.log('\x1b[36m%s\x1b[0m', 'Retrying web search request with refreshed token...');
           const retryHeaders = buildDashScopeHeaders(newAccessToken, false);
-          
+
           const retryResponse = await axios.post(webSearchUrl, payload, { headers: retryHeaders, timeout: 300000, httpAgent, httpsAgent });
           console.log('\x1b[32m%s\x1b[0m', 'Web search request succeeded after token refresh');
-          // Reset auth error count on successful request
           this.resetAuthErrorCount('default');
           return retryResponse.data;
-        } catch (retryError) {
+        } catch {
           console.error('\x1b[31m%s\x1b[0m', 'Web search request failed even after token refresh');
-          // If retry fails, throw the original error with additional context
-          throw new Error(`Qwen web search API error (after token refresh attempt): ${error.response?.status || 'N/A'} ${JSON.stringify(error.response?.data || error.message)}`);
+          throw new Error(`Qwen web search API error (after token refresh attempt): ${axiosErr.response?.status || 'N/A'} ${JSON.stringify(axiosErr.response?.data || axiosErr.message)}`);
         }
       }
-      
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        throw new Error(`Qwen web search API error: ${error.response.status} ${JSON.stringify(error.response.data)}`);
-      } else if (error.request) {
-        // The request was made but no response was received
+
+      const axiosErr = error as AxiosError;
+      if (axiosErr.response) {
+        throw new Error(`Qwen web search API error: ${axiosErr.response.status} ${JSON.stringify(axiosErr.response.data)}`);
+      } else if (axiosErr.request) {
         throw new Error(`Qwen web search API request failed: No response received`);
       } else {
-        // Something happened in setting up the request that triggered an Error
-        throw new Error(`Qwen web search API request failed: ${error.message}`);
+        throw new Error(`Qwen web search API request failed: ${(error as Error).message}`);
       }
     }
   }
 }
-
-module.exports = { QwenAPI };

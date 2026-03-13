@@ -4,52 +4,58 @@ A proxy server that exposes Qwen models through an OpenAI-compatible API endpoin
 
 > New - qwen 3,5 plus model (coder-model) is now the recommended default
 
-
 ## Important Notes
 
-To have a better experience for using it as prod you can use cloud flare worker . check the repo https://github.com/aptdnfapt/qwen-worker-proxy
+To have a better experience for using it as prod you can use cloud flare worker . check the repo <https://github.com/aptdnfapt/qwen-worker-proxy>
 
 Users might face errors or 504 Gateway Timeout issues when using contexts with 130,000 to 150,000 tokens or more. This appears to be a practical limit for Qwen models. Qwen code itself tends to also break down and get stuck on this limit.
 
- [Discord](https://discord.gg/6S7HwCxbMy) server to talk about other stuff . 
+ [Discord](https://discord.gg/6S7HwCxbMy) server to talk about other stuff .
 
 ## Quick Start
 
 ### Option 1: Using Docker (Recommended)
 
-1.  **Configure Environment**:
+1. **Configure Environment**:
+
     ```bash
     cp .env.example .env
     # Edit .env file with your desired configuration
     ```
 
-2.  **Build and Run with Docker Compose**:
+2. **Build and Run with Docker Compose**:
+
     ```bash
     docker-compose up -d
     ```
 
-3.  **Authenticate**:
+3. **Authenticate**:
+
     ```bash
-    docker-compose exec qwen-proxy npm run auth:add <account>
+    docker-compose exec qwen-proxy pnpm run auth:add <account>
     ```
 
-4.  **Use the Proxy**: Point your OpenAI-compatible client to `http://localhost:8080/v1`
+4. **Use the Proxy**: Point your OpenAI-compatible client to `http://localhost:8080/v1`
 
 ### Option 2: Local Development
 
-1.  **Install Dependencies**:
+1. **Install Dependencies**:
+
     ```bash
-    npm install
+    pnpm install
     ```
-2.  **Authenticate**: You need to authenticate with Qwen to generate the required credentials file.
-    *   Run `npm run auth:add <account>` to authenticate with your Qwen account
-    *   This will create the `~/.qwen/oauth_creds.json` file needed by the proxy server
-    *   Alternatively, you can use the official `qwen-code` CLI tool from [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code)
-3.  **Start the Server**:
+
+2. **Authenticate**: You need to authenticate with Qwen to generate the required credentials file.
+    * Run `pnpm run auth:add <account>` to authenticate with your Qwen account
+    * This will create the `~/.qwen/oauth_creds.json` file needed by the proxy server
+    * Alternatively, you can use the official `qwen-code` CLI tool from [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code)
+3. **Start the Server**:
+
     ```bash
-    npm start
+    pnpm start
     ```
-4.  **Use the Proxy**: Point your OpenAI-compatible client to `http://localhost:8080/v1`.
+
+4. **Use the Proxy**: Point your OpenAI-compatible client to `http://localhost:8080/v1`.
 
 **Note**: API key can be any random string - it doesn't matter for this proxy.
 
@@ -60,40 +66,47 @@ The proxy supports multiple Qwen accounts to overcome the 2,000 requests per day
 ### Setting Up Multiple Accounts
 
 **For Docker:**
+
 ```bash
-docker-compose exec qwen-proxy npm run auth:list
-docker-compose exec qwen-proxy npm run auth:add <account-id>
-docker-compose exec qwen-proxy npm run auth:remove <account-id>
+docker-compose exec qwen-proxy pnpm run auth:list
+docker-compose exec qwen-proxy pnpm run auth:add <account-id>
+docker-compose exec qwen-proxy pnpm run auth:remove <account-id>
 ```
 
 **For Local Development:**
+
 1. List existing accounts:
+
    ```bash
-   npm run auth:list
+   pnpm run auth:list
    ```
 
 2. Add a new account:
+
    ```bash
-   npm run auth:add <account-id>
+   pnpm run auth:add <account-id>
    ```
+
    Replace `<account-id>` with a unique identifier for your account (e.g., `account2`, `team-account`, etc.)
 
 3. Remove an account:
+
    ```bash
-   npm run auth:remove <account-id>
+   pnpm run auth:remove <account-id>
    ```
 
 ### How Account Rotation Works
 
-- When you have multiple accounts configured, the proxy will automatically rotate between them
-- Each account has a 2,000 request per day limit
-- When an account reaches its limit, Qwen's API will return a quota exceeded error
-- The proxy detects these quota errors and automatically switches to the next available account
-- If a DEFAULT_ACCOUNT is configured, the proxy will use that account first before rotating to others
-- Request counts are tracked locally and reset daily at UTC midnight
-- You can check request counts for all accounts with:
+* When you have multiple accounts configured, the proxy will automatically rotate between them
+* Each account has a 2,000 request per day limit
+* When an account reaches its limit, Qwen's API will return a quota exceeded error
+* The proxy detects these quota errors and automatically switches to the next available account
+* If a DEFAULT_ACCOUNT is configured, the proxy will use that account first before rotating to others
+* Request counts are tracked locally and reset daily at UTC midnight
+* You can check request counts for all accounts with:
+
   ```bash
-  npm run auth:counts
+  pnpm run auth:counts
   ```
 
 ### Usage Tracking
@@ -102,18 +115,19 @@ Monitor your API usage with detailed reports:
 
 ```bash
 # Show comprehensive usage report (chat + web search)
-npm run usage
+pnpm run usage
 ```
 
 ### Account Usage Monitoring
 
 The proxy provides real-time feedback in the terminal:
-- Shows which account is being used for each request
-- Displays current request count for each account
-- Notifies when an account is rotated due to quota limits
-- Indicates which account will be tried next during rotation
-- Shows which account is configured as the default account on server startup
-- Marks the default account in the account list display
+
+* Shows which account is being used for each request
+* Displays current request count for each account
+* Notifies when an account is rotated due to quota limits
+* Indicates which account will be tried next during rotation
+* Shows which account is configured as the default account on server startup
+* Marks the default account in the account list display
 
 ## API Key Authentication
 
@@ -122,16 +136,19 @@ The proxy can be secured with API keys to prevent unauthorized access.
 ### Setting up API Keys
 
 1. **Single API Key:**
+
    ```bash
    API_KEY=your-secret-key-here
    ```
 
 2. **Multiple API Keys:**
+
    ```bash
    API_KEY=key1,key2,key3
    ```
 
 3. **Using the Proxy:**
+
    ```javascript
    const openai = new OpenAI({
      apiKey: 'your-secret-key-here',
@@ -140,8 +157,9 @@ The proxy can be secured with API keys to prevent unauthorized access.
    ```
 
 **Headers Supported:**
-- `X-API-Key: your-secret-key`
-- `Authorization: Bearer your-secret-key`
+
+* `X-API-Key: your-secret-key`
+* `Authorization: Bearer your-secret-key`
 
 If no API key is configured, the proxy will not require authentication.
 
@@ -154,21 +172,23 @@ curl http://localhost:8080/health
 ```
 
 Response includes:
-- Server status
-- Account validation status  
-- Token expiry information
-- Request counts
+
+* Server status
+* Account validation status  
+* Token expiry information
+* Request counts
 
 ## Configuration
 
 The proxy server can be configured using environment variables. Create a `.env` file in the project root or set the variables directly in your environment.
 
-*   `LOG_FILE_LIMIT`: Maximum number of debug log files to keep (default: 20)
-*   `DEBUG_LOG`: Set to `true` to enable debug logging (default: false)
-*   `API_KEY`: Set API key(s) for authentication (comma-separated for multiple keys)
-*   `DEFAULT_ACCOUNT`: Specify which account the proxy should use by default
+* `LOG_FILE_LIMIT`: Maximum number of debug log files to keep (default: 20)
+* `DEBUG_LOG`: Set to `true` to enable debug logging (default: false)
+* `API_KEY`: Set API key(s) for authentication (comma-separated for multiple keys)
+* `DEFAULT_ACCOUNT`: Specify which account the proxy should use by default
 
 Example `.env` file:
+
 ```bash
 # Keep only the 10 most recent log files
 LOG_FILE_LIMIT=10
@@ -180,13 +200,14 @@ DEBUG_LOG=true
 API_KEY=your-secret-key-here
 
 # Specify which account to use by default (when using multi-account setup)
-# Should match the name used when adding an account with 'npm run auth add <name>'
+# Should match the name used when adding an account with 'pnpm run auth add <name>'
 DEFAULT_ACCOUNT=my-primary-account
 ```
 
 ## Example Usage
 
-### Using JavaScript/Node.js:
+### Using JavaScript/Node.js
+
 ```javascript
 import OpenAI from 'openai';
 
@@ -209,7 +230,8 @@ async function main() {
 main();
 ```
 
-### Using curl:
+### Using curl
+
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -227,7 +249,8 @@ curl -X POST http://localhost:8080/v1/chat/completions \
   }'
 ```
 
-### Testing with streaming response:
+### Testing with streaming response
+
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -263,11 +286,11 @@ The proxy supports the following Qwen models:
 
 ## Supported Endpoints
 
-*   `POST /v1/chat/completions` - Chat completions (streaming and non-streaming)
-*   `POST /v1/web/search` - Web search for real-time information
-*   `GET /v1/models` - List available models
-*   `GET/POST /mcp` - MCP server endpoint with SSE transport
-*   `GET /health` - Health check and status
+* `POST /v1/chat/completions` - Chat completions (streaming and non-streaming)
+* `POST /v1/web/search` - Web search for real-time information
+* `GET /v1/models` - List available models
+* `GET/POST /mcp` - MCP server endpoint with SSE transport
+* `GET /health` - Health check and status
 
 ## Web Search API
 
@@ -307,19 +330,19 @@ To use the MCP server with opencode, add the following to your `~/.config/openco
 }
 ```
 
-Replace `your-api-key` with your configured API key if authentication is enabled. If no API key is set (common for local development), omit the `headers` field entirely. 
+Replace `your-api-key` with your configured API key if authentication is enabled. If no API key is set (common for local development), omit the `headers` field entirely.
 
 This provides access to the `web_search` tool that uses Qwen's web search API with automatic account rotation. For other mcp clients programs / tools your need to find the proper json .
 
 ### MCP Endpoint
 
-- `GET/POST /mcp` - MCP server endpoint supporting SSE transport
+* `GET/POST /mcp` - MCP server endpoint supporting SSE transport
 
 The MCP server provides a `web_search` tool that allows searching the web using Qwen's infrastructure. It supports the same API key authentication as the main endpoints.
 
 ## AI AGENT CONFIGS  
 
-This proxy server supports tool calling functionality, allowing you to use it with tools like opencode and crush roo cline kilo and etc . 
+This proxy server supports tool calling functionality, allowing you to use it with tools like opencode and crush roo cline kilo and etc .
 
 ### opencode Configuration
 
@@ -375,6 +398,7 @@ To use with crush, add the following to `~/.config/crush/crush.json`:
 ```
 
 ### Claude code Router
+
 ```json
 {
   "LOG": false,
@@ -415,7 +439,7 @@ To use with Roo Code or Kilo Code or Cline :
 5. Type or choose the model name exactly as: `coder-model`
 6. Disable streaming in the checkbox for Roo Code or Kilo Code
 7. Change the max output setting from -1 to 32000
-8. You can change the context window size to around 300k or so but after 150k it gets slower so keep that in mind . 
+8. You can change the context window size to around 300k or so but after 150k it gets slower so keep that in mind .
 
 ## Token Counting
 
@@ -426,13 +450,13 @@ The proxy now displays token counts in the terminal for each request, showing bo
 The proxy includes comprehensive token usage tracking that monitors daily input and output token consumption across all accounts. View detailed token usage reports with either:
 
 ```bash
-npm run auth:tokens
+pnpm run auth:tokens
 ```
 
 or
 
 ```bash
-npm run tokens
+pnpm run tokens
 ```
 
 Both commands display a clean table showing daily token usage trends, lifetime totals, and request counts. For more information, see `docs/token-usage-tracking.md`.

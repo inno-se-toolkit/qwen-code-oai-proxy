@@ -1,16 +1,36 @@
-const config = require('./config.js');
-const { DebugLogger } = require('./utils/logger.js');
-const axios = require('axios');
+import { Request, Response } from 'express';
+import config from './config';
+import { DebugLogger } from './utils/logger';
+import axios from 'axios';
 
 const debugLogger = new DebugLogger();
 
 // MCP sessions for SSE
-const mcpSessions = new Map();
+const mcpSessions = new Map<string, Response>();
 
-// GET handler for MCP SSE endpoint
-const mcpGetHandler = (req, res) => {
-  // SSE endpoint for MCP transport
-  const sessionId = req.query.sessionId || Math.random().toString(36).substring(2);
+interface JsonRpcRequest {
+  jsonrpc: string;
+  method: string;
+  params?: {
+    name?: string;
+    arguments?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  id?: string | number | null;
+}
+
+interface JsonRpcResponse {
+  jsonrpc: string;
+  id?: string | number | null;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
+export const mcpGetHandler = (req: Request, res: Response): void => {
+  const sessionId = (req.query.sessionId as string) || Math.random().toString(36).substring(2);
   mcpSessions.set(sessionId, res);
 
   res.writeHead(200, {
@@ -22,62 +42,59 @@ const mcpGetHandler = (req, res) => {
   });
   res.write(`event: endpoint\ndata: /mcp?sessionId=${sessionId}\n\n`);
 
-  // Keep connection open
   res.on('close', () => {
     mcpSessions.delete(sessionId);
   });
 };
 
-// POST handler for MCP JSON-RPC
-const mcpPostHandler = async (req, res) => {
+export const mcpPostHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Verify API key first (only if API keys are configured)
     const apiKey = req.headers.authorization?.replace('Bearer ', '') ||
-                   req.headers['x-api-key'];
+                   (req.headers['x-api-key'] as string);
 
-    if (config.apiKey && !config.apiKey.includes(apiKey)) {
-      return res.status(401).json({
+    if (config.apiKey && !config.apiKey.includes(apiKey || '')) {
+      res.status(401).json({
         jsonrpc: '2.0',
         error: { code: -32600, message: 'Unauthorized - Invalid API key' },
         id: req.body.id || null
       });
+      return;
     }
 
-    const { jsonrpc, method, params, id } = req.body;
+    const { jsonrpc, method, params, id } = req.body as JsonRpcRequest;
 
-    // Validate JSON-RPC 2.0 format
     if (jsonrpc !== '2.0') {
-      return res.status(400).json({
+      res.status(400).json({
         jsonrpc: '2.0',
         error: { code: -32600, message: 'Invalid JSON-RPC version' },
         id: id || null
       });
+      return;
     }
 
-    const sessionId = req.query.sessionId;
+    const sessionId = req.query.sessionId as string;
     const sessionRes = mcpSessions.get(sessionId);
 
-    const sendResponse = (response) => {
+    const sendResponse = (response: JsonRpcResponse): void => {
       if (sessionRes) {
         sessionRes.write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
-        res.status(200).end(); // Acknowledge the POST
+        res.status(200).end();
       } else {
         res.json(response);
       }
     };
 
-    const sendError = (error) => {
+    const sendError = (error: JsonRpcResponse): void => {
       if (sessionRes) {
         sessionRes.write(`event: message\ndata: ${JSON.stringify(error)}\n\n`);
         res.status(200).end();
       } else {
-        res.status(error.error.code === -32600 ? 400 : 500).json(error);
+        res.status(error.error?.code === -32600 ? 400 : 500).json(error);
       }
     };
 
     switch (method) {
       case 'initialize':
-        // MCP initialization handshake
         sendResponse({
           jsonrpc: '2.0',
           id: id,
@@ -130,13 +147,12 @@ const mcpPostHandler = async (req, res) => {
         });
         break;
 
-      case 'tools/call':
-        const { name, arguments: args } = params;
+      case 'tools/call': {
+        const { name, arguments: args } = params || {};
 
         if (name === 'web_search') {
-          const { query, page, rows } = args;
+          const { query, page, rows } = (args || {}) as { query?: string; page?: number; rows?: number };
 
-          // Validate required parameters
           if (!query || typeof query !== 'string') {
             sendError({
               jsonrpc: '2.0',
@@ -147,7 +163,6 @@ const mcpPostHandler = async (req, res) => {
           }
 
           try {
-            // Use the /v1/web/search endpoint
             const response = await axios.post(`http://${config.host}:${config.port}/v1/web/search`, {
               query: query.trim(),
               page: page || 1,
@@ -167,7 +182,7 @@ const mcpPostHandler = async (req, res) => {
           } catch (searchError) {
             sendError({
               jsonrpc: '2.0',
-              error: { code: -32603, message: 'Web search failed: ' + searchError.message },
+              error: { code: -32603, message: 'Web search failed: ' + (searchError as Error).message },
               id: id
             });
           }
@@ -179,6 +194,7 @@ const mcpPostHandler = async (req, res) => {
           });
         }
         break;
+      }
 
       default:
         sendError({
@@ -188,13 +204,13 @@ const mcpPostHandler = async (req, res) => {
         });
     }
   } catch (error) {
-    console.error('MCP endpoint error:', error.message);
-    const debugFileName = await debugLogger.logApiCall('/mcp', req, null, error);
-    await debugLogger.logError('/mcp', error, 'error');
+    console.error('MCP endpoint error:', (error as Error).message);
+    await debugLogger.logApiCall('/mcp', req, null, error as Error);
+    await debugLogger.logError('/mcp', error as Error, 'error');
 
-    const sessionId = req.query.sessionId;
+    const sessionId = req.query.sessionId as string;
     const sessionRes = mcpSessions.get(sessionId);
-    const errorResponse = {
+    const errorResponse: JsonRpcResponse = {
       jsonrpc: '2.0',
       error: { code: -32603, message: 'Internal server error' },
       id: req.body.id || null
@@ -207,9 +223,4 @@ const mcpPostHandler = async (req, res) => {
       res.status(500).json(errorResponse);
     }
   }
-};
-
-module.exports = {
-  mcpGetHandler,
-  mcpPostHandler
 };
