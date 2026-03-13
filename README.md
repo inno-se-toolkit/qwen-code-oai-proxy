@@ -273,12 +273,12 @@ curl -X POST http://localhost:8080/v1/chat/completions \
 
 The proxy supports the following Qwen models:
 
-| Model ID | Description | Max Tokens | Notes |
-|----------|-------------|------------|-------|
-| `coder-model` | **Recommended** - Qwen 3.5 Plus, best for coding | 65536 | Default model, excellent for code tasks |
-| `qwen3-coder-plus` | Qwen 3 Coder Plus | 65536 | Legacy coding model |
-| `qwen3-coder-flash` | Qwen 3 Coder Flash | 65536 | Faster, lighter model |
-| `vision-model` | Multimodal with image support | 32768 | For image processing (lower token limit) |
+| Model ID            | Description                                      | Max Tokens | Notes                                    |
+| ------------------- | ------------------------------------------------ | ---------- | ---------------------------------------- |
+| `coder-model`       | **Recommended** - Qwen 3.5 Plus, best for coding | 65536      | Default model, excellent for code tasks  |
+| `qwen3-coder-plus`  | Qwen 3 Coder Plus                                | 65536      | Legacy coding model                      |
+| `qwen3-coder-flash` | Qwen 3 Coder Flash                               | 65536      | Faster, lighter model                    |
+| `vision-model`      | Multimodal with image support                    | 32768      | For image processing (lower token limit) |
 
 **Important**: The `vision-model` has a max token limit of 32,768 (lower than other models). The proxy automatically clamps `max_tokens` for this model.
 
