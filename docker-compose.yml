@@ -2,7 +2,7 @@ services:
   qwen-proxy:
     build: .
     ports:
-      - "${PORT:-8080}:${PORT:-8080}"
+      - "${HOST_PORT:-8080}:${PORT:-8080}"
     volumes:
       - ~/.qwen:/root/.qwen
     environment:
