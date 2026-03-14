@@ -294,7 +294,7 @@ The proxy supports the following Qwen models:
 
 ## Web Search API
 
-Free web search endpoint from Qwen - 2000 requests per day for free accounts.
+Free web search endpoint from Qwen - 1000 requests per day for free accounts.
 
 ```bash
 curl -X POST http://localhost:8080/v1/web/search \
