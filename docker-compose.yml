@@ -1,5 +1,5 @@
 services:
-  qwen-proxy:
+  qwen-code-api:
     build: .
     ports:
       - "${HOST_PORT:-8080}:${PORT:-8080}"

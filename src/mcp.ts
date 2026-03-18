@@ -106,7 +106,7 @@ export const mcpPostHandler = async (req: Request, res: Response): Promise<void>
               }
             },
             serverInfo: {
-              name: 'qwen-proxy-mcp-server',
+              name: 'qwen-code-api-mcp-server',
               version: '1.0.0'
             }
           }
