@@ -1,10 +1,13 @@
 services:
   qwen-code-api:
     build: .
+
     ports:
       - "${HOST_PORT:-8080}:${PORT:-8080}"
+
     volumes:
       - ~/.qwen:/root/.qwen
+
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-8080}
@@ -18,7 +21,9 @@ services:
 
     networks:
       - lms-network
+
     restart: unless-stopped
+
     healthcheck:
       test:
         - CMD
