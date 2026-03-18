@@ -14,7 +14,7 @@ The proxy server now includes its own built-in authentication implementation bas
 
 The proxy server now includes its own built-in authentication script that implements the OAuth 2.0 Device Authorization Flow:
 
-1. Run `npm run auth` in the project directory
+1. Run `pnpm run auth` in the project directory
 2. The script will automatically:
    - Check for existing valid credentials
    - Attempt to refresh expired credentials if found

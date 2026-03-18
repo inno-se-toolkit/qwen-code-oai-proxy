@@ -169,7 +169,7 @@ async function testAllAccounts() {
     
     if (accountIds.length === 0) {
       console.log(colorText('❌ No accounts found. Please add accounts first.', colors.red));
-      console.log(colorText('   Run: npm run auth:add <account-name>', colors.yellow));
+      console.log(colorText('   Run: pnpm run auth:add <account-name>', colors.yellow));
       return;
     }
     
@@ -182,7 +182,7 @@ async function testAllAccounts() {
     } catch (error) {
       console.log(colorText('❌ Proxy server is not running!', colors.red));
       console.log(colorText(`   Expected at: ${PROXY_URL}`, colors.yellow));
-      console.log(colorText('   Start it with: npm start', colors.yellow));
+      console.log(colorText('   Start it with: pnpm start', colors.yellow));
       return;
     }
     
@@ -258,7 +258,7 @@ async function testAllAccounts() {
     
     if (successCount === 0) {
       console.log(colorText('   ❌ All accounts failed. Check:', colors.red));
-      console.log(colorText('      • Account authentication (run: npm run auth:list)', colors.yellow));
+      console.log(colorText('      • Account authentication (run: pnpm run auth:list)', colors.yellow));
       console.log(colorText('      • Network connectivity', colors.yellow));
       console.log(colorText('      • Proxy server logs', colors.yellow));
     } else if (successCount < results.length) {
@@ -269,7 +269,7 @@ async function testAllAccounts() {
         if (failed.status === 'quota_exceeded') {
           console.log(colorText(`      • Account ${failed.accountId}: Quota exceeded - will reset at UTC midnight`, colors.yellow));
         } else if (failed.status === 'auth_failed') {
-          console.log(colorText(`      • Account ${failed.accountId}: Re-authenticate (npm run auth:add ${failed.accountId})`, colors.yellow));
+          console.log(colorText(`      • Account ${failed.accountId}: Re-authenticate (pnpm run auth:add ${failed.accountId})`, colors.yellow));
         } else {
           console.log(colorText(`      • Account ${failed.accountId}: ${failed.error}`, colors.yellow));
         }

@@ -195,7 +195,7 @@ async function authenticate() {
     if (existingCredentials && authManager.isTokenValid(existingCredentials)) {
       console.log('\n✅ Valid credentials already exist!');
       console.log('Access token is still valid and will be used by the proxy server.');
-      console.log('\nYou can start the proxy server with: npm start');
+      console.log('\nYou can start the proxy server with: pnpm start');
       return;
     }
     
@@ -207,7 +207,7 @@ async function authenticate() {
         const refreshedCredentials = await authManager.refreshAccessToken(existingCredentials);
         console.log('\n✅ Token refreshed successfully!');
         console.log('Access token has been updated and will be used by the proxy server.');
-        console.log('\nYou can start the proxy server with: npm start');
+        console.log('\nYou can start the proxy server with: pnpm start');
         return;
       } catch (refreshError) {
         console.log('Failed to refresh token:', refreshError.message);
@@ -247,7 +247,7 @@ async function authenticate() {
     
     console.log('\n🎉 Authentication successful!');
     console.log('Access token saved to ~/.qwen/oauth_creds.json');
-    console.log('\nYou can now start the proxy server with: npm start');
+    console.log('\nYou can now start the proxy server with: pnpm start');
   } catch (error) {
     console.error('Authentication failed:', error.message);
     process.exit(1);
@@ -264,14 +264,14 @@ switch (command) {
     break;
   case 'add':
     if (!args[1]) {
-      console.error('Please provide an account ID: npm run auth add <account-id>');
+      console.error('Please provide an account ID: pnpm run auth add <account-id>');
       process.exit(1);
     }
     addAccount(args[1]);
     break;
   case 'remove':
     if (!args[1]) {
-      console.error('Please provide an account ID: npm run auth remove <account-id>');
+      console.error('Please provide an account ID: pnpm run auth remove <account-id>');
       process.exit(1);
     }
     removeAccount(args[1]);
@@ -284,7 +284,7 @@ switch (command) {
     authenticate();
     break;
   default:
-    console.log('Usage: npm run auth [list|add <account-id>|remove <account-id>]');
+    console.log('Usage: pnpm run auth [list|add <account-id>|remove <account-id>]');
     console.log('  list                - List all accounts');
     console.log('  add <account-id>    - Add a new account with the specified ID');
     console.log('  remove <account-id> - Remove an existing account with the specified ID');

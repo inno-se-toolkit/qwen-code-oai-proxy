@@ -10,7 +10,7 @@ To configure a default account, set the `DEFAULT_ACCOUNT` environment variable i
 
 ```bash
 # Specify which account to use by default (when using multi-account setup)
-# Should match the name used when adding an account with 'npm run auth add <name>'
+# Should match the name used when adding an account with 'pnpm run auth add <name>'
 DEFAULT_ACCOUNT=my-primary-account
 ```
 
@@ -33,9 +33,9 @@ DEFAULT_ACCOUNT=my-primary-account
 
 1. Add multiple accounts:
    ```bash
-   npm run auth:add primary
-   npm run auth:add secondary
-   npm run auth:add backup
+   pnpm run auth:add primary
+   pnpm run auth:add secondary
+   pnpm run auth:add backup
    ```
 
 2. Configure your `.env` file:
@@ -45,7 +45,7 @@ DEFAULT_ACCOUNT=my-primary-account
 
 3. Start the proxy:
    ```bash
-   npm start
+   pnpm start
    ```
 
 4. The proxy will show which account is configured as default on startup:
@@ -77,6 +77,6 @@ The proxy provides clear feedback about account usage:
 
 ## Notes
 
-- The `DEFAULT_ACCOUNT` value must match exactly the name used when adding the account with `npm run auth add <name>`
+- The `DEFAULT_ACCOUNT` value must match exactly the name used when adding the account with `pnpm run auth add <name>`
 - If the specified default account doesn't exist or is invalid, the proxy will fall back to using the first available account
 - The default account feature only affects the initial account selection; rotation behavior remains the same when quotas are reached

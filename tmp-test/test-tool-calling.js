@@ -60,7 +60,7 @@ async function testToolCalling() {
     
     if (error.message.includes('ECONNREFUSED')) {
       console.log('\nIt looks like the proxy server is not running.');
-      console.log('Please start the proxy server with: npm start');
+      console.log('Please start the proxy server with: pnpm start');
     }
   }
 }

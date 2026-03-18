@@ -111,7 +111,7 @@ CLI tool for managing Qwen authentication that:
 #### package.json
 Project metadata and dependency management:
 - Lists dependencies (axios, express, cors, dotenv, etc.)
-- Defines npm scripts for common operations
+- Defines pnpm scripts for common operations
 - Specifies entry point and project information
 
 #### .env.example
@@ -186,7 +186,7 @@ Detailed documentation files covering:
 
 ### DevOps
 
-No dedicated DevOps files found in the codebase. The project relies on standard npm scripts for execution.
+No dedicated DevOps files found in the codebase. The project relies on standard pnpm scripts for execution.
 
 ## 4. API Endpoints Analysis
 
@@ -289,27 +289,27 @@ src/index.js
 ### Installation and Setup Process
 
 1. Clone the repository
-2. Run `npm install` to install dependencies
-3. Run `npm run auth` to authenticate with Qwen
+2. Run `pnpm install` to install dependencies
+3. Run `pnpm run auth` to authenticate with Qwen
 4. Optionally configure environment variables in a `.env` file
-5. Run `npm start` to start the proxy server
+5. Run `pnpm start` to start the proxy server
 
 ### Development Workflow
 
-- `npm start`: Run the proxy server
-- `npm run auth`: Authenticate with Qwen
-- `npm run auth:list`: List all configured accounts
-- `npm run auth:add <account-id>`: Add a new account
-- `npm run auth:remove <account-id>`: Remove an account
-- `npm run auth:counts`: Check request counts for all accounts
+- `pnpm start`: Run the proxy server
+- `pnpm run auth`: Authenticate with Qwen
+- `pnpm run auth:list`: List all configured accounts
+- `pnpm run auth:add <account-id>`: Add a new account
+- `pnpm run auth:remove <account-id>`: Remove an account
+- `pnpm run auth:counts`: Check request counts for all accounts
 
 ### Production Deployment Strategy
 
 The proxy server can be deployed as a standalone Node.js application:
 1. Ensure Node.js runtime is available
-2. Install dependencies with `npm install --production`
+2. Install dependencies with `pnpm install --production`
 3. Set appropriate environment variables
-4. Run with `npm start` or `node src/index.js`
+4. Run with `pnpm start` or `node src/index.js`
 5. Configure reverse proxy (nginx, etc.) for production use
 
 ## 7. Technology Stack Breakdown
@@ -337,7 +337,7 @@ The proxy server can be deployed as a standalone Node.js application:
 - Simple test utilities provided for verification
 
 ### Deployment Technologies
-- **npm**: Package manager and script runner
+- **pnpm**: Package manager and script runner
 - Standard Node.js deployment patterns
 
 ## 8. Visual Architecture Diagram

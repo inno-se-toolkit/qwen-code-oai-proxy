@@ -219,7 +219,7 @@ async function showUsageReport() {
 const args = process.argv.slice(2);
 
 if (args.length > 0 && (args[0] === '--help' || args[0] === '-h')) {
-  console.log('Usage: npm run usage');
+  console.log('Usage: ppnpm run usage');
   console.log('Display daily usage statistics for chat completions and web search.');
   process.exit(0);
 }

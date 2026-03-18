@@ -15,7 +15,7 @@ Enable users to authenticate and manage multiple Qwen accounts to overcome the 2
 
 ### Implementation Plan
 - Extend `QwenAuthManager` to handle multiple credential files
-- Modify `npm run auth` to support multiple accounts
+- Modify `pnpm run auth` to support multiple accounts
 - Create separate credential files for each account (e.g., `oauth_creds_1.json`, `oauth_creds_2.json`)
 - Add account management commands
 
@@ -77,8 +77,8 @@ Automatically switch between accounts when quota limits are reached.
 - No additional server dependencies
 
 ### Option 3: Command-line Interface
-- Extend existing npm commands
-- `npm run auth:list` - List accounts and request counts
-- `npm run auth:add` - Add new account
-- `npm run auth:remove` - Remove account
+- Extend existing pnpm commands
+- `pnpm run auth:list` - List accounts and request counts
+- `pnpm run auth:add` - Add new account
+- `pnpm run auth:remove` - Remove account
 - Simplest implementation but less user-friendly

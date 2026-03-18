@@ -92,7 +92,7 @@ The proxy server can be configured using environment variables. Create a `.env` 
 - `HOST`: Server host (default: localhost)
 - `PORT`: Server port (default: 8080)
 - `DEFAULT_ACCOUNT`: Specify which account the proxy should use by default (when using multi-account setup)
-    - Should match the name used when adding an account with `npm run auth add <name>`
+    - Should match the name used when adding an account with `pnpm run auth add <name>`
     - If not set or invalid, the proxy will use the first available account
 
 For information about temperature settings and other model parameters, see `temperature-settings.md`.

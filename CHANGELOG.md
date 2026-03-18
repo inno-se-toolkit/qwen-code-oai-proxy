@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-account support with automatic rotation to overcome 2,000 requests per day limit per account
 - Persistent request counting that survives server restarts
 - Account management commands:
-  - `npm run auth:list` - List all configured accounts
-  - `npm run auth:add <account-id>` - Add a new account
-  - `npm run auth:remove <account-id>` - Remove an existing account
-  - `npm run auth:counts` - Check request counts for all accounts
+  - `pnpm run auth:list` - List all configured accounts
+  - `pnpm run auth:add <account-id>` - Add a new account
+  - `pnpm run auth:remove <account-id>` - Remove an existing account
+  - `pnpm run auth:counts` - Check request counts for all accounts
 - Sticky account selection instead of round-robin for better consistency
 - Built-in QR code authentication using OAuth 2.0 Device Authorization Flow with PKCE
 - Automatic browser opening during authentication flow

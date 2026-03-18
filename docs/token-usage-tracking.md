@@ -10,7 +10,7 @@ The Qwen OpenAI Proxy now includes comprehensive token usage tracking functional
 - **Multi-Account Support**: Aggregates token usage across all configured accounts
 - **Streaming & Regular Requests**: Tracks tokens from both streaming and non-streaming API responses
 - **Persistent Storage**: Token usage data is stored locally in `~/.qwen/request_counts.json`
-- **Clean Terminal Display**: Beautiful table-based reporting with `npm run auth:tokens`
+- **Clean Terminal Display**: Beautiful table-based reporting with `pnpm run auth:tokens`
 
 ## How It Works
 
@@ -44,13 +44,13 @@ Token usage data is stored in the existing `request_counts.json` file alongside 
 You can use either of these commands to view token usage reports:
 
 ```bash
-npm run auth:tokens
+pnpm run auth:tokens
 ```
 
 or
 
 ```bash
-npm run tokens
+pnpm run tokens
 ```
 
 Both commands display a clean table showing:
@@ -81,7 +81,7 @@ Total Requests: 127
 ### Core Components
 - **QwenAPI Class**: Enhanced with token tracking methods
 - **tokens.js**: Terminal display script with table formatting
-- **cli-table3**: npm package for beautiful terminal tables
+- **cli-table3**: package for beautiful terminal tables
 
 ### Key Methods
 - `recordTokenUsage(accountId, inputTokens, outputTokens)`: Records daily token usage

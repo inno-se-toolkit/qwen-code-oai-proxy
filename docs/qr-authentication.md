@@ -16,7 +16,7 @@ The built-in authentication script implements the OAuth 2.0 Device Authorization
 To authenticate using the built-in QR code system:
 
 ```bash
-npm run auth
+pnpm run auth
 ```
 
 The authentication script will:
@@ -91,7 +91,7 @@ If you encounter issues with the authentication process:
 
 1. **QR Code Not Displaying**: Ensure your terminal supports Unicode characters
 2. **Browser Not Opening**: Manually visit the displayed URL in your browser
-3. **Authentication Timeout**: Restart the authentication process with `npm run auth`
+3. **Authentication Timeout**: Restart the authentication process with `pnpm run auth`
 4. **Existing Credentials Issues**: Delete `~/.qwen/oauth_creds.json` and re-authenticate
 
 For more detailed information about the OAuth 2.0 Device Authorization Flow, see the [Authentication documentation](./authentication.md).
