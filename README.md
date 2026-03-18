@@ -138,13 +138,13 @@ The proxy can be secured with API keys to prevent unauthorized access.
 1. **Single API Key:**
 
    ```bash
-   QWEN_API_KEY=your-secret-key-here
+   QWEN_CODE_API_KEY=your-secret-key-here
    ```
 
 2. **Multiple API Keys:**
 
    ```bash
-   QWEN_API_KEY=key1,key2,key3
+   QWEN_CODE_API_KEY=key1,key2,key3
    ```
 
 3. **Using the Proxy:**
@@ -184,7 +184,7 @@ The proxy server can be configured using environment variables. Create a `.env` 
 
 * `LOG_FILE_LIMIT`: Maximum number of debug log files to keep (default: 20)
 * `DEBUG_LOG`: Set to `true` to enable debug logging (default: false)
-* `QWEN_API_KEY`: Set API key(s) for authentication (comma-separated for multiple keys)
+* `QWEN_CODE_API_KEY`: Set API key(s) for authentication (comma-separated for multiple keys)
 * `DEFAULT_ACCOUNT`: Specify which account the proxy should use by default
 
 Example `.env` file:
@@ -197,7 +197,7 @@ LOG_FILE_LIMIT=10
 DEBUG_LOG=true
 
 # API key for authentication (comma-separated for multiple keys)
-QWEN_API_KEY=your-secret-key-here
+QWEN_CODE_API_KEY=your-secret-key-here
 
 # Specify which account to use by default (when using multi-account setup)
 # Should match the name used when adding an account with 'pnpm run auth add <name>'

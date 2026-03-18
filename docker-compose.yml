@@ -17,7 +17,7 @@ services:
       - STREAM=${STREAM:-false}
       - DEFAULT_ACCOUNT=${DEFAULT_ACCOUNT:-}
       - QWEN_CODE_AUTH_USE=${QWEN_CODE_AUTH_USE:-true}
-      - QWEN_API_KEY=${QWEN_API_KEY:-}
+      - QWEN_CODE_API_KEY=${QWEN_CODE_API_KEY:-}
 
     networks:
       - lms-network
@@ -35,7 +35,7 @@ services:
             port: '${PORT:-8080}',
             path: '/health',
             method: 'GET',
-            headers: { 'X-API-Key': '${QWEN_API_KEY:-}' }
+            headers: { 'X-API-Key': '${QWEN_CODE_API_KEY:-}' }
           }, (res) => { process.exit(res.statusCode === 200 ? 0 : 1) });
           req.on('error', () => process.exit(1));
           req.end();

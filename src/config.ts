@@ -106,8 +106,8 @@ const config: Config = {
   retryDelayMs: parseInt(process.env.RETRY_DELAY_MS || '1000'),
 
   // API Key configuration
-  apiKey: process.env.QWEN_API_KEY ?
-    process.env.QWEN_API_KEY.split(',').map(key => key.trim()).filter(key => key.length > 0) :
+  apiKey: process.env.QWEN_CODE_API_KEY ?
+    process.env.QWEN_CODE_API_KEY.split(',').map(key => key.trim()).filter(key => key.length > 0) :
     null, // API key(s) for securing access (can be multiple, comma-separated)
 
   // System Prompt configuration
