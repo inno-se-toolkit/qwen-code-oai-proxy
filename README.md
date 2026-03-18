@@ -19,14 +19,14 @@ Users might face errors or 504 Gateway Timeout issues when using contexts with 1
 1. **Configure Environment**:
 
     ```bash
-    cp .env.example .env
-    # Edit .env file with your desired configuration
+    cp .env.example .env.secret
+    # Edit .env.secret file with your desired configuration
     ```
 
 2. **Build and Run with Docker Compose**:
 
     ```bash
-    docker-compose up -d
+    docker-compose --env-file .env.secret up -d
     ```
 
 3. **Authenticate**:
@@ -180,14 +180,14 @@ Response includes:
 
 ## Configuration
 
-The proxy server can be configured using environment variables. Create a `.env` file in the project root or set the variables directly in your environment.
+The proxy server can be configured using environment variables. Create a `.env.secret` file in the project root (copy from `.env.example`) or set the variables directly in your environment.
 
 * `LOG_FILE_LIMIT`: Maximum number of debug log files to keep (default: 20)
 * `DEBUG_LOG`: Set to `true` to enable debug logging (default: false)
 * `QWEN_CODE_API_KEY`: Set API key(s) for authentication (comma-separated for multiple keys)
 * `DEFAULT_ACCOUNT`: Specify which account the proxy should use by default
 
-Example `.env` file:
+Example `.env.secret` file:
 
 ```bash
 # Keep only the 10 most recent log files
