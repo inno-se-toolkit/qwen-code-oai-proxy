@@ -3,7 +3,7 @@ services:
     build: .
 
     ports:
-      - "${HOST_PORT:-8080}:${PORT:-8080}"
+      - "${QWEN_CODE_API_HOST_PORT:-8080}:${PORT:-8080}"
 
     volumes:
       - ~/.qwen:/root/.qwen
