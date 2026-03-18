@@ -2,6 +2,7 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 import { fetch } from 'undici';
 import * as crypto from 'crypto';
+import config from '../config.js';
 
 // File System Configuration
 const QWEN_DIR = '.qwen';
@@ -85,7 +86,7 @@ export class QwenAuthManager {
   }
 
   async loadCredentials(): Promise<QwenCredentials | null> {
-    const config = (await import('../config')).default;
+
     if (config.qwenCodeAuthUse === false) {
       return null;
     }
@@ -114,7 +115,7 @@ export class QwenAuthManager {
         file !== QWEN_CREDENTIAL_FILENAME
       );
 
-      const config = (await import('../config')).default;
+  
       try {
         const defaultAuthExists = await fs.access(this.credentialsPath).then(() => true).catch(() => false);
 
