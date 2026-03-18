@@ -76,9 +76,6 @@ typings/
 .yarn/install-state.gz
 .pnp.*
 
-# Docker
-.dockerignore
-
 # IDEs
 .vscode/
 .idea/
