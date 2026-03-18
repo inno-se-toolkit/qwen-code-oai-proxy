@@ -283,7 +283,7 @@ src/index.js
 - `QWEN_DEVICE_CODE_ENDPOINT`: OAuth device code endpoint (default provided)
 - `QWEN_TOKEN_ENDPOINT`: OAuth token endpoint (default provided)
 - `QWEN_SCOPE`: OAuth scope (default provided)
-- `DEFAULT_MODEL`: Default Qwen model (default: qwen3-coder-plus)
+- `DEFAULT_MODEL`: Default Qwen model (default: `coder-model`)
 - `TOKEN_REFRESH_BUFFER`: Token refresh buffer in milliseconds (default: 30000)
 
 ### Installation and Setup Process
