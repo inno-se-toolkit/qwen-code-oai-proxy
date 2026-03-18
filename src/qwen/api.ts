@@ -26,7 +26,7 @@ const httpsAgent = new https.Agent({
 
 // Default Qwen configuration
 const DEFAULT_QWEN_API_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_MODEL = 'qwen3-coder-plus';
+const DEFAULT_MODEL = 'coder-model';
 const QWEN_CODE_VERSION = '0.12.0';
 
 // Model aliases - maps client-facing model names to actual Qwen model names
