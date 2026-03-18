@@ -26,13 +26,13 @@ Users might face errors or 504 Gateway Timeout issues when using contexts with 1
 2. **Build and Run with Docker Compose**:
 
     ```bash
-    docker-compose --env-file .env.secret up -d
+    docker compose --env-file .env.secret up -d
     ```
 
 3. **Authenticate**:
 
     ```bash
-    docker-compose exec qwen-code-api pnpm run auth:add <account>
+    docker compose exec qwen-code-api pnpm run auth:add <account>
     ```
 
 4. **Use the Proxy**: Point your OpenAI-compatible client to `http://localhost:8080/v1`
@@ -68,9 +68,9 @@ The proxy supports multiple Qwen accounts to overcome the 2,000 requests per day
 **For Docker:**
 
 ```bash
-docker-compose exec qwen-code-api pnpm run auth:list
-docker-compose exec qwen-code-api pnpm run auth:add <account-id>
-docker-compose exec qwen-code-api pnpm run auth:remove <account-id>
+docker compose exec qwen-code-api pnpm run auth:list
+docker compose exec qwen-code-api pnpm run auth:add <account-id>
+docker compose exec qwen-code-api pnpm run auth:remove <account-id>
 ```
 
 **For Local Development:**
