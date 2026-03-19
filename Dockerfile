@@ -34,15 +34,17 @@ FROM harbor.pg.innopolis.university/docker-hub-cache/node:25.8.0-alpine
 
 WORKDIR /app
 
-RUN addgroup -S app && adduser -S app -G app
+RUN apk add --no-cache su-exec && addgroup -S app && adduser -S app -G app
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 
-# Create directory for qwen credentials
+# Create directory for qwen credentials and set ownership
 RUN mkdir -p /home/app/.qwen && chown -R app:app /app /home/app/.qwen
 
-USER app
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Expose port
 EXPOSE ${PORT:-8080}
@@ -51,5 +53,6 @@ EXPOSE ${PORT:-8080}
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:${PORT:-8080}/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
-# Start the application
+# Start as root so entrypoint can copy credentials, then drop to app user
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
