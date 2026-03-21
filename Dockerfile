@@ -36,11 +36,12 @@ WORKDIR /app
 
 RUN apk add --no-cache su-exec && addgroup -S app && adduser -S app -G app
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/dist ./dist
+COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 
-# Create directory for qwen credentials and set ownership
-RUN mkdir -p /home/app/.qwen && chown -R app:app /app /home/app/.qwen
+# Create writable directories for the app user
+RUN mkdir -p /home/app/.qwen /app/log /app/debug \
+    && chown app:app /home/app/.qwen /app/log /app/debug
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
